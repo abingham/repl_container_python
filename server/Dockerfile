@@ -23,7 +23,7 @@ WORKDIR      ${CYBER_DOJO_RUNNER_HOME}
 
 COPY . ${CYBER_DOJO_RUNNER_HOME}
 RUN npm install
-RUN pip install -e requirements.txt
+RUN pip install -r requirements.txt
 
 ARG PORT
 EXPOSE ${PORT}

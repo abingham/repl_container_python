@@ -2,17 +2,19 @@ import os
 import selectors
 import subprocess
 
-from flask import Flask
+from flask import Flask, request, url_for
 app = Flask(__name__)
-
-@app.route("/")
-def index():
-    return url_for('../build', filename='index.html')
 
 repls = {}
 sockets = {}
 logs = {}
 sel = selectors.DefaultSelector()
+
+
+@app.route("/")
+def index():
+    return app.send_static_file('index.html')
+
 
 def repl_read(avatar_name, fd):
     data = os.read(fd, 1024)
@@ -23,6 +25,7 @@ def repl_read(avatar_name, fd):
         pass
 
     return data
+
 
 # Create a new REPL for the avatar, destroying an existing one if necessary.
 @app.route('/repls', methods=['POST'])
@@ -89,8 +92,9 @@ def repls():
 #     });
 # });
 
+
 host = '127.0.0.1' if os.name == 'nt' else '0.0.0.0'
 port = os.environ.get('PORT', 3000)
 
-print('App listening to http://' + host + ':' + port);
+print('App listening to http://{}:{}'.format(host, port))
 app.run(host=host, port=port)
