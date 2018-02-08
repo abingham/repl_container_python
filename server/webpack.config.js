@@ -2,34 +2,33 @@ var path = require("path");
 var webpack = require("webpack");
 
 module.exports = {
-  entry: {
-    app: [
-      './src/index.js'
-    ]
-  },
-
-  output: {
-    path: path.resolve(__dirname + '/src/static'),
-    filename: 'bundle.js'
-  },
-
-  module: {
-    loaders: [
-      {
-        test: /\.(css|scss)$/,
-        loaders: [
-          'style-loader',
-          'css-loader',
+    entry: {
+        app: [
+            './src/index.js'
         ]
-      },
-    ]
-  },
-  plugins: [
-  ],
+    },
 
-  devServer: {
-    inline: true,
-    stats: { colors: true }
-  }
+    output: {
+        path: path.resolve(__dirname + '/src/static'),
+        filename: 'bundle.js'
+    },
 
+    module: {
+        loaders: [
+            {
+                test: /\.(css|scss)$/,
+                loaders: [
+                    'style-loader',
+                    'css-loader',
+                ]
+            },
+        ]
+    },
+    plugins: [
+    ],
+
+    devServer: {
+        inline: true,
+        stats: { colors: true }
+    }
 };

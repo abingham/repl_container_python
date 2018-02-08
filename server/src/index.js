@@ -8,6 +8,7 @@ import * as fit from 'xterm/lib/addons/fit/fit';
 import * as fullscreen from 'xterm/lib/addons/fullscreen/fullscreen';
 import * as search from 'xterm/lib/addons/search/search';
 import * as winptyCompat from 'xterm/lib/addons/winptyCompat/winptyCompat';
+import io from 'socket.io-client';
 
 Terminal.applyAddon(attach);
 Terminal.applyAddon(fit);
@@ -86,6 +87,7 @@ function setTerminalSize() {
 createTerminal();
 
 function createTerminal() {
+    var avatar_name = 'test_avatar';
     term = new Terminal({
         cursorBlink: true, // optionElements.cursorBlink.checked,
         scrollback: 10, // parseInt(optionElements.scrollback.value, 10),
@@ -98,12 +100,12 @@ function createTerminal() {
         }
         var cols = size.cols,
             rows = size.rows,
-            url = '/repls/' + pid + '/size?cols=' + cols + '&rows=' + rows;
+            url = '/repls/' + pid + '/size?cols=' + cols + '&rows=' + rows + '&avatar_name=' + avatar_name;
 
         fetch(url, {method: 'POST'});
     });
-    protocol = (location.protocol === 'https:') ? 'wss://' : 'ws://';
-    socketURL = protocol + location.hostname + ((location.port) ? (':' + location.port) : '') + '/repls/';
+    // protocol = (location.protocol === 'https:') ? 'wss://' : 'ws://';
+    socketURL = location.protocol + '//' + location.hostname + ((location.port) ? (':' + location.port) : '') + '/repls';
 
     term.open(terminalContainer);
     term.winptyCompatInit();
@@ -114,24 +116,35 @@ function createTerminal() {
     setTimeout(function () {
 
         // Set terminal size again to set the specific dimensions on the demo
-        setTerminalSize();
-
-        fetch('/repls?cols=' + term.cols + '&rows=' + term.rows, {method: 'POST'}).then(function (res) {
-
-            res.text().then(function (processId) {
-                pid = processId;
-                socketURL += processId;
-                socket = new WebSocket(socketURL);
-                socket.onopen = runRealTerminal;
-                socket.onclose = runFakeTerminal;
-                socket.onerror = runFakeTerminal;
-            });
-        });
+        // setTerminalSize();
+        socket = io(socketURL);
+        socket.on('connect', runRealTerminal);
+        socket.on('disconnect', runFakeTerminal);
+        // socket.on('event', runFakeTerminal);
     }, 0);
 }
 
 function runRealTerminal() {
-    term.attach(socket);
+	term.on('data', function(data) {
+		socket.emit('data', data);
+	});
+
+	socket.on('data', function(data) {
+		term.write(data);
+	});
+
+    var options = {};
+	// term.open(options.parent || document.body);
+	term.write('WELCOME!\r\n');
+
+	socket.on('disconnect', function() {
+		term.destroy();
+	});
+
+	// for displaying the first command line
+    socket.emit('data', '\n');
+
+    // term.attach(socket);
     term._initialized = true;
 }
 

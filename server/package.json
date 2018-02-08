@@ -4,6 +4,8 @@
     "description": "",
     "main": "index.js",
     "dependencies": {
+        "fs": "0.0.1-security",
+        "socket.io": "^2.0.4",
         "xterm": "^3.0.1"
     },
     "devDependencies": {

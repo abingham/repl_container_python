@@ -2,8 +2,11 @@ import os
 import selectors
 import subprocess
 
-from flask import Flask, request, url_for
+from flask import Flask, jsonify, request
+from flask_socketio import SocketIO
+
 app = Flask(__name__)
+socketio = SocketIO(app)
 
 repls = {}
 sockets = {}
@@ -17,19 +20,27 @@ def index():
 
 
 def repl_read(avatar_name, fd):
+    print('repl_read: {}'.format(avatar_name))
     data = os.read(fd, 1024)
+
+    print('read:', data)
+
     try:
         socket = sockets[avatar_name]
         socket.write(data)
     except KeyError:
         pass
 
+    assert avatar_name in logs
+    logs[avatar_name] += data
+
     return data
 
 
 # Create a new REPL for the avatar, destroying an existing one if necessary.
 @app.route('/repls', methods=['POST'])
-def repls():
+def handle_repls():
+    print('REPLS!!!')
     try:
         avatar_name = request.args['avatar_name']
         cols = int(request.args['cols'])
@@ -66,6 +77,16 @@ def repls():
 
     sel.register(repl.stdout, selectors.EVENT_READ, lambda data: repl_read(avatar_name, data))
 
+    resp = jsonify({'repl_pid': repl.pid})
+    resp.status_code = 201
+
+    return resp
+
+
+@socketio.on('message', namespace='/repls')
+def handle_message(message, avatar_name):
+    print('received message: ' + message)
+
 # // Websocket for interacting with REPL
 # app.ws('/repls/:kata_id/:avatar_name', function (ws, req) {
 #     var repl_key = req.params.kata_id + "/" + req.params.avatar_name;
@@ -97,4 +118,4 @@ host = '127.0.0.1' if os.name == 'nt' else '0.0.0.0'
 port = os.environ.get('PORT', 3000)
 
 print('App listening to http://{}:{}'.format(host, port))
-app.run(host=host, port=port)
+socketio.run(app, host=host, port=port)
