@@ -1,3 +1,2 @@
-eventlet
-flask
-flask-socketio
+aiohttp
+python-socketio

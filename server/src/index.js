@@ -110,7 +110,7 @@ function createTerminal() {
     //     fetch(url, {method: 'POST'});
     // });
 
-    socketURL = location.protocol + '//' + location.hostname + ((location.port) ? (':' + location.port) : '');
+    socketURL = location.protocol + '//' + location.hostname + ((location.port) ? (':' + location.port) : '') + '/repls';
     socket = io(socketURL, {
         query: {
             avatar_name: avatar_name
@@ -123,7 +123,7 @@ function createTerminal() {
 	    });
 
 	    socket.on('data', function(data) {
-	    	term.write(data);
+	    	term.write(data + "\r");
 	    });
         socket.on('disconnect', function() {
 	    	term.destroy();

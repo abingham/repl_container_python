@@ -17,7 +17,8 @@
     },
     "scripts": {
         "prestart": "webpack",
-        "start": "FLASK_APP=src/server.py FLASK_DEBUG=1 flask run",
+        "start": "python src/server.py",
+        "start-dev": "python src/server.py --auto-reload",
         "webpack": "webpack",
         "watch": "webpack --watch"
     },
