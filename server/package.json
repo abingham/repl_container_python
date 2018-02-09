@@ -17,8 +17,9 @@
     },
     "scripts": {
         "prestart": "webpack",
-        "start": "python src/server.py",
-        "webpack": "webpack"
+        "start": "FLASK_APP=src/server.py FLASK_DEBUG=1 flask run",
+        "webpack": "webpack",
+        "watch": "webpack --watch"
     },
     "author": "",
     "license": "ISC"

@@ -7,7 +7,6 @@ module.exports = {
             './src/index.js'
         ]
     },
-
     output: {
         path: path.resolve(__dirname + '/src/static'),
         filename: 'bundle.js'

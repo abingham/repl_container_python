@@ -1,3 +1,4 @@
+import json
 import os
 import selectors
 import subprocess
@@ -37,14 +38,14 @@ def repl_read(avatar_name, fd):
     return data
 
 
-# Create a new REPL for the avatar, destroying an existing one if necessary.
-@app.route('/repls', methods=['POST'])
-def handle_repls():
-    print('REPLS!!!')
+@socketio.on('connect')
+def handle_connect():
+    print('connect! {}'.format(request.args))
+
     try:
         avatar_name = request.args['avatar_name']
-        cols = int(request.args['cols'])
-        rows = int(request.args['rows'])
+        # cols = int(request.args['cols'])
+        # rows = int(request.args['rows'])
     except KeyError:
         # TODO: return appropriate HTTP error
         raise
@@ -59,7 +60,10 @@ def handle_repls():
         del repls[avatar_name]
         del logs[avatar_name]
 
-    repl = subprocess.Popen('python', stdin=subprocess.PIPE, stdout=subprocess.PIPE)
+    repl = subprocess.Popen('python',
+                            stdin=subprocess.PIPE,
+                            stdout=subprocess.PIPE,
+                            stderr=subprocesss.STDOUT)
     repls[avatar_name] = repl
 #         repl = pty.spawn(
 #             'python', [], {
@@ -77,15 +81,23 @@ def handle_repls():
 
     sel.register(repl.stdout, selectors.EVENT_READ, lambda data: repl_read(avatar_name, data))
 
-    resp = jsonify({'repl_pid': repl.pid})
-    resp.status_code = 201
+    # resp = jsonify({'repl_pid': repl.pid})
+    # resp.status_code = 201
 
-    return resp
+    # return resp
 
 
-@socketio.on('message', namespace='/repls')
-def handle_message(message, avatar_name):
-    print('received message: ' + message)
+@socketio.on('data')
+def handle_message(message):
+    print('received data: ', message)
+    repl = repls[message['avatar_name']]
+    repl.stdin.write(message['data'].encode('utf-8'))
+    repl.stdin.flush()
+
+
+@socketio.on('json')
+def handle_json(json):
+    print('received json: ' + str(json))
 
 # // Websocket for interacting with REPL
 # app.ws('/repls/:kata_id/:avatar_name', function (ws, req) {
@@ -114,8 +126,9 @@ def handle_message(message, avatar_name):
 # });
 
 
-host = '127.0.0.1' if os.name == 'nt' else '0.0.0.0'
-port = os.environ.get('PORT', 3000)
+if __name__ == '__main__':
+    host = '127.0.0.1' if os.name == 'nt' else '0.0.0.0'
+    port = os.environ.get('PORT', 3000)
 
-print('App listening to http://{}:{}'.format(host, port))
-socketio.run(app, host=host, port=port)
+    print('App listening to http://{}:{}'.format(host, port))
+    socketio.run(app, host=host, port=port)
