@@ -9,6 +9,7 @@ import socketio
 
 repls = {}
 logs = {}
+queues = {}
 
 sio = socketio.AsyncServer()
 app = web.Application()
@@ -34,90 +35,90 @@ async def index(request):
         return web.Response(text=f.read(), content_type='text/html')
 
 
+async def send_data(sid, lines):
+    for line in lines:
+        await sio.emit(
+            'data',
+            line.decode('utf-8'),
+            room=sid,
+            namespace='/repls')
+
+
+# async def emit_messages():
+#     while True:
+#         sid, line = await message_queue.get()
+#         print('emiting:', line)
+#         await sio.emit(
+#             'data',
+#             line.decode('utf-8'),
+#             room=sid,
+#             namespace='/repls')
+
+# loop.create_task(emit_messages())
+
+
 class ReplProtocol(asyncio.SubprocessProtocol):
-    def __init__(self, sid):
+    def __init__(self):
         super().__init__()
-        self.sid = sid
+        self.queue = asyncio.Queue()
 
     def pipe_data_received(self, fd, data):
-        print('data received from python:', data)
-        loop.create_task(
-            sio.emit('data',
-                     data.decode('utf-8'),
-                     room=self.sid,
-                     namespace='/repls'))
+        self.queue.put_nowait(data)
 
     def process_exited(self):
         print('process exited')
 
 
-async def create_repl(sid):
+async def create_repl(request):
     print('creating repl')
-    proc = await loop.subprocess_exec(
-        lambda: ReplProtocol(sid),
+    transport, protocol = await loop.subprocess_exec(
+        lambda: ReplProtocol(),
         'python', '-i', '-u',
         )
 
     # proc is a tuple of (transport, protocol)
-    repls[sid] = proc
+    repls[transport.get_pid()] = (transport, protocol)
+    return web.Response(
+        text=str(transport.get_pid()))
 
 
-# async def monitor(sid):
-#     print('monitoring', sid)
-#     repl = repls[sid]
-#     while True:
-#         if repl.returncode is not None:
-#             break
+async def process_repl_output(ws, queue):
+    while True:
+        data = await queue.get()
+        print('repl output:', data)
+        data = data.replace(b'\n', b'\r\n')
+        ws.send_str(data.decode('utf-8'))
 
-#         data = await repl.stdout.read()
-#         if data:
-#             print('read from python:', data)
-#             await sio.emit('data', data.decode('utf-8'), room=sid, namespace='/repls')
-#     print('done monitoring', sid)
-
-@sio.on('connect', namespace='/repls')
-async def connect(sid, environ):
-    request = environ['aiohttp.request']
-
-    try:
-        avatar_name = request.query['avatar_name']
-    except KeyError:
-        # TODO: return appropriate HTTP error
-        raise
-
-    print('connected with name', avatar_name)
-
-    await create_repl(sid)
-    # loop.create_task(monitor(sid))
-    print('done connecting')
+    # TODO: Need to properly handle ws shutdown? Or will that be handled
+    # properly by the loop?
 
 
-@sio.on('data', namespace='/repls')
-async def message(sid, msg):
-    print("message ", msg)
-    transport, protocol = repls[sid]
-    transport.get_pipe_transport(0).write(msg['data'].encode('utf-8'))
+async def websocket_handler(request):
+    pid = int(request.match_info['pid'])
+    print('pid:', pid)
 
-    # proc = repls[sid]
-    # proc.stdin.write(msg['data'].encode('utf-8'))
-    # drain = proc.stdin.drain()
-    # if drain is not ():
-    #     await drain
+    ws = web.WebSocketResponse()
+    await ws.prepare(request)
 
-@sio.on('disconnect', namespace='/repls')
-def disconnect(sid):
-    print('disconnect ', sid)
-    # if sid in repls:
-    #     transport, protocol = repls[sid]
-    #     try:
-    #         transport.kill()
-    #         print('Closed REPL on disconnect:', transport.get_pid())
-    #     except ProcessLookupError:
-    #         pass
-    #     del repls[sid]
+    transport, protocol = repls[pid]
+
+    loop.create_task(
+        process_repl_output(ws, protocol.queue))
+
+    while True:
+        msg = await ws.receive()
+        print('repl input:', msg)
+        data = msg.data.encode('utf-8').replace(b'\r', b'\n')
+        transport.get_pipe_transport(0).write(data)
+
+    await ws.close()
+    return ws
+
 
 app.router.add_static('/static', 'src/static')
 app.router.add_get('/', index)
+app.router.add_post('/repls', create_repl)
+app.router.add_route('GET', '/repls/{pid}', websocket_handler)
 
 if __name__ == '__main__':
     import argparse

@@ -110,29 +110,28 @@ function createTerminal() {
     //     fetch(url, {method: 'POST'});
     // });
 
-    socketURL = location.protocol + '//' + location.hostname + ((location.port) ? (':' + location.port) : '') + '/repls';
-    socket = io(socketURL, {
-        query: {
-            avatar_name: avatar_name
-        }
-    });
+    protocol = (location.protocol === 'https:') ? 'wss://' : 'ws://';
+    socketURL = protocol + '//' + location.hostname + ((location.port) ? (':' + location.port) : '') + '/repls/';
 
-    socket.on('connect', function() {
-        term.on('data', function(data) {
-	    	socket.emit('data', {avatar_name: avatar_name, data: data});
-	    });
+    // fit is called within a setTimeout, cols and rows need this.
+    setTimeout(function () {
 
-	    socket.on('data', function(data) {
-	    	term.write(data + "\r");
-	    });
-        socket.on('disconnect', function() {
-	    	term.destroy();
-	    });
+        // Set terminal size again to set the specific dimensions on the demo
+        // setTerminalSize();
 
-        term._initialized = true; // TODO: Why this? Look into the docs.
-    });
+        // Request creation of new repl
+        fetch('/repls', {method: 'POST'}).then(function (res) {
 
-
+            res.text().then(function (processId) {
+                pid = processId;
+                socketURL += processId;
+                socket = new WebSocket(socketURL);
+                socket.onopen = runRealTerminal;
+                // socket.onclose = runFakeTerminal;
+                // socket.onerror = runFakeTerminal;
+            });
+        });
+    }, 0);
     // // fit is called within a setTimeout, cols and rows need this.
     // setTimeout(function () {
 
@@ -145,27 +144,12 @@ function createTerminal() {
 }
 
 function runRealTerminal() {
-	// term.on('data', function(data) {
-	// 	socket.emit('data', data);
-	// });
-
-	// socket.on('data', function(data) {
-	// 	term.write(data);
-	// });
-
-    // var options = {};
-	// // term.open(options.parent || document.body);
-	// term.write('WELCOME!\r\n');
-
-	// socket.on('disconnect', function() {
-	// 	term.destroy();
-	// });
-
-	// // for displaying the first command line
-    // socket.emit('message', 'llamas!\n');
-
-    // // term.attach(socket);
-    // term._initialized = true;
+    console.log('connecting terminal');
+    socket.onmessage = function (event) {
+        console.log(event.data);
+    }
+    term.attach(socket);
+    term._initialized = true;
 }
 
 function runFakeTerminal() {
