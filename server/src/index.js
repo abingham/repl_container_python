@@ -8,7 +8,6 @@ import * as fit from 'xterm/lib/addons/fit/fit';
 import * as fullscreen from 'xterm/lib/addons/fullscreen/fullscreen';
 import * as search from 'xterm/lib/addons/search/search';
 import * as winptyCompat from 'xterm/lib/addons/winptyCompat/winptyCompat';
-import io from 'socket.io-client';
 
 Terminal.applyAddon(attach);
 Terminal.applyAddon(fit);

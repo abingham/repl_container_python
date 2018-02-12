@@ -5,7 +5,6 @@
     "main": "index.js",
     "dependencies": {
         "fs": "0.0.1-security",
-        "socket.io": "^2.0.4",
         "xterm": "^3.0.1"
     },
     "devDependencies": {
@@ -17,8 +16,8 @@
     },
     "scripts": {
         "prestart": "webpack",
-        "start": "python src/server.py",
-        "start-dev": "python src/server.py --auto-reload",
+        "start": "python3 src/server.py",
+        "start-dev": "python3 src/server.py --auto-reload",
         "webpack": "webpack",
         "watch": "webpack --watch"
     },

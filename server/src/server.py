@@ -90,7 +90,8 @@ async def index(request):
 async def create_repl(request):
     """Start a new REPL accessed through a PTY.
     """
-    proc = await AsyncPTYProcess.create('python')
+    # TODO: The process name should be configurable
+    proc = await AsyncPTYProcess.create('python3')
     repls[proc.pid] = proc
     return web.Response(
         text=str(proc.pid))
@@ -144,4 +145,9 @@ if __name__ == '__main__':
         import aiohttp_autoreload
         aiohttp_autoreload.start()
 
-    web.run_app(app)
+    try:
+        port = int(os.environ['PORT'])
+    except KeyError:
+        port = None
+
+    web.run_app(app, port=port)

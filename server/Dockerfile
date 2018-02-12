@@ -11,6 +11,7 @@ bash \
 g++ \
 make \
 nodejs \
+nodejs-npm \
 python3 \
 tar
 
@@ -23,7 +24,7 @@ WORKDIR      ${CYBER_DOJO_RUNNER_HOME}
 
 COPY . ${CYBER_DOJO_RUNNER_HOME}
 RUN npm install
-RUN pip install -r requirements.txt
+RUN pip3 install -r requirements.txt
 
 ARG PORT
 EXPOSE ${PORT}
