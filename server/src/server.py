@@ -7,8 +7,6 @@ from aiohttp import web
 
 
 repls = {}
-logs = {}
-queues = {}
 
 app = web.Application()
 loop = asyncio.get_event_loop()
@@ -16,14 +14,16 @@ loop = asyncio.get_event_loop()
 
 async def kill_all_repls(app):
     global repls
-    for proc, fd, queue in repls.values():
+    for proc in repls.values():
         proc.kill()
     repls = {}
 
 app.on_shutdown.append(kill_all_repls)
 
 
-class AsyncPTY:
+class AsyncPTYProcess:
+    """Runs a subprocess behind a PTY, providing async reading.
+    """
     def __init__(self, *cmd, loop=None):
         if loop is None:
             loop = asyncio.get_event_loop()
@@ -40,21 +40,33 @@ class AsyncPTY:
                 os.read(self.master, 1024)))
 
     def read(self):
+        """Read the next chunk of output from the subprocess's stdout.
+
+        This returns an awaitable coroutine.
+        """
         return self.queue.get()
 
     def write(self, data):
+        """Write `data` to the subprocess's stdin.
+        """
         return os.write(self.master, data)
 
     @property
     def pid(self):
+        """The process ID of the subprocess.
+        """
         return self.proc.pid
 
     def kill(self):
+        """Kill the subprocess.
+        """
         os.kill(self.pid, signal.SIGKILL)
 
     @staticmethod
     async def create(*cmd, loop=None):
-        apty = AsyncPTY(cmd, loop)
+        """Create a new `AsyncPTYProcess` running the specified command.
+        """
+        apty = AsyncPTYProcess(cmd, loop)
 
         assert apty.proc is None
 
@@ -78,19 +90,25 @@ async def index(request):
 async def create_repl(request):
     """Start a new REPL accessed through a PTY.
     """
-    proc = await AsyncPTY.create('python')
+    proc = await AsyncPTYProcess.create('python')
     repls[proc.pid] = proc
     return web.Response(
         text=str(proc.pid))
 
 
 async def process_repl_output(ws, proc):
+    """Pipe output from `proc` into the websocket `ws`.
+    """
     while True:
         data = await proc.read()
         ws.send_str(data.decode('utf-8'))
 
 
 async def websocket_handler(request):
+    """Create a new websocket and connect it's input and output to the subprocess
+    with the specified PID.
+    """
+
     pid = int(request.match_info['pid'])
 
     socket = web.WebSocketResponse()
@@ -98,9 +116,11 @@ async def websocket_handler(request):
 
     proc = repls[pid]
 
+    # Arrange for the process output to be written to the websocket.
     loop.create_task(
         process_repl_output(socket, proc))
 
+    # Write all websocket input into the subprocess.
     async for msg in socket:
         proc.write(msg.data.encode('utf-8'))
 
