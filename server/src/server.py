@@ -1,6 +1,7 @@
 import asyncio
 import os
 import pty
+import signal
 
 from aiohttp import web
 
@@ -22,6 +23,53 @@ async def kill_all_repls(app):
 app.on_shutdown.append(kill_all_repls)
 
 
+class AsyncPTY:
+    def __init__(self, *cmd, loop=None):
+        if loop is None:
+            loop = asyncio.get_event_loop()
+
+        self.master, self.slave = pty.openpty()
+
+        self.queue = asyncio.Queue()
+        self.proc = None
+
+        # Enqueue all process output for later reading
+        loop.add_reader(
+            self.master,
+            lambda: self.queue.put_nowait(
+                os.read(self.master, 1024)))
+
+    def read(self):
+        return self.queue.get()
+
+    def write(self, data):
+        return os.write(self.master, data)
+
+    @property
+    def pid(self):
+        return self.proc.pid
+
+    def kill(self):
+        os.kill(self.pid, signal.SIGKILL)
+
+    @staticmethod
+    async def create(*cmd, loop=None):
+        apty = AsyncPTY(cmd, loop)
+
+        assert apty.proc is None
+
+        # TODO: Perhaps this is overkill. Do we really need to create the
+        # process asynchronously? If not, then this factory function isn't
+        # necessary.
+        apty.proc = await asyncio.create_subprocess_exec(
+            *cmd,
+            stdin=apty.slave,
+            stdout=apty.slave,
+            stderr=apty.slave)
+
+        return apty
+
+
 async def index(request):
     with open('src/static/index.html') as f:
         return web.Response(text=f.read(), content_type='text/html')
@@ -30,25 +78,15 @@ async def index(request):
 async def create_repl(request):
     """Start a new REPL accessed through a PTY.
     """
-    master, slave = pty.openpty()
-
-    queue = asyncio.Queue()
-    proc = await asyncio.create_subprocess_exec(
-        'python',
-        stdin=slave,
-        stdout=slave,
-        stderr=slave)
-    loop.add_reader(master, lambda: queue.put_nowait(os.read(master, 1024)))
-
-    repls[proc.pid] = (proc, master, queue)
+    proc = await AsyncPTY.create('python')
+    repls[proc.pid] = proc
     return web.Response(
         text=str(proc.pid))
 
 
-async def process_repl_output(ws, queue):
+async def process_repl_output(ws, proc):
     while True:
-        data = await queue.get()
-        print('repl output:', data)
+        data = await proc.read()
         ws.send_str(data.decode('utf-8'))
 
 
@@ -58,13 +96,13 @@ async def websocket_handler(request):
     socket = web.WebSocketResponse()
     await socket.prepare(request)
 
-    proc, repl_fd, queue = repls[pid]
+    proc = repls[pid]
 
     loop.create_task(
-        process_repl_output(socket, queue))
+        process_repl_output(socket, proc))
 
     async for msg in socket:
-        os.write(repl_fd, msg.data.encode('utf-8'))
+        proc.write(msg.data.encode('utf-8'))
 
     await socket.close()
     return socket
