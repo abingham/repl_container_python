@@ -34,9 +34,9 @@ services:
         - CYBER_DOJO_RUNNER_HOME=${CYBER_DOJO_RUNNER_HOME}
         - PORT=${CYBER_DOJO_RUNNER_SERVICE_PORT}
     user: root
-    image: cyberdojo/runner_repl
+    image: cyberdojo/repl_container
     init: true
-    container_name: test_runner_repl_server
+    container_name: test_repl_container_server
     read_only: false
     tmpfs: /tmp
     restart: 'no'
