@@ -102,7 +102,7 @@ async def process_repl_output(ws, proc):
     """
     while True:
         data = await proc.read()
-        ws.send_str(data.decode('utf-8'))
+        await ws.send_str(data.decode('utf-8'))
 
 
 async def websocket_handler(request):
