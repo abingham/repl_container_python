@@ -83,14 +83,6 @@ async def create_repl(request):
         text=str(proc.pid))
 
 
-async def process_repl_output(ws, proc):
-    """Pipe output from `proc` into the websocket `ws`.
-    """
-    while True:
-        data = await proc.read()
-        await ws.send_str(data.decode('utf-8'))
-
-
 async def websocket_handler(request):
     """Create a new websocket and connect it's input and output to the subprocess
     with the specified PID.
@@ -103,9 +95,15 @@ async def websocket_handler(request):
 
     proc = repls[pid]
 
+    async def process_repl_output():
+        """Pipe output from `proc` into the websocket `ws`.
+        """
+        while True:
+            data = await proc.read()
+            await socket.send_str(data.decode('utf-8'))
+
     # Arrange for the process output to be written to the websocket.
-    loop.create_task(
-        process_repl_output(socket, proc))
+    loop.create_task(process_repl_output())
 
     # Write all websocket input into the subprocess.
     async for msg in socket:
