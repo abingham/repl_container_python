@@ -2,6 +2,7 @@ import asyncio
 import os
 import pty
 import signal
+import subprocess
 
 from aiohttp import web
 
@@ -31,7 +32,11 @@ class AsyncPTYProcess:
         self.master, self.slave = pty.openpty()
 
         self.queue = asyncio.Queue()
-        self.proc = None
+        self.proc = subprocess.Popen(
+            cmd,
+            stdin=self.slave,
+            stdout=self.slave,
+            stderr=self.slave)
 
         # Enqueue all process output for later reading
         loop.add_reader(
@@ -62,25 +67,6 @@ class AsyncPTYProcess:
         """
         os.kill(self.pid, signal.SIGKILL)
 
-    @staticmethod
-    async def create(*cmd, loop=None):
-        """Create a new `AsyncPTYProcess` running the specified command.
-        """
-        apty = AsyncPTYProcess(cmd, loop)
-
-        assert apty.proc is None
-
-        # TODO: Perhaps this is overkill. Do we really need to create the
-        # process asynchronously? If not, then this factory function isn't
-        # necessary.
-        apty.proc = await asyncio.create_subprocess_exec(
-            *cmd,
-            stdin=apty.slave,
-            stdout=apty.slave,
-            stderr=apty.slave)
-
-        return apty
-
 
 async def index(request):
     with open('src/static/index.html') as f:
@@ -91,7 +77,7 @@ async def create_repl(request):
     """Start a new REPL accessed through a PTY.
     """
     # TODO: The process name should be configurable
-    proc = await AsyncPTYProcess.create('python3')
+    proc = AsyncPTYProcess('python3')
     repls[proc.pid] = proc
     return web.Response(
         text=str(proc.pid))
