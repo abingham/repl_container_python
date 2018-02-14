@@ -34,7 +34,7 @@ services:
         - CYBER_DOJO_RUNNER_HOME=${CYBER_DOJO_RUNNER_HOME}
         - PORT=${CYBER_DOJO_RUNNER_SERVICE_PORT}
     user: root
-    image: cyberdojo/repl_container
+    image: cyberdojo/repl_container_python
     init: true
     container_name: test_repl_container_server
     read_only: false
