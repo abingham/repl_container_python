@@ -1,10 +1,40 @@
 import asyncio
+import logging.config
 import os
 import pty
 import signal
 import subprocess
 
 from aiohttp import web
+
+logging.config.dictConfig({
+    'version': 1,
+    'handlers': {
+        'console': {
+            'class' : 'logging.StreamHandler',
+            'level'   : logging.INFO,
+            'stream'  : 'ext://sys.stdout'
+        }
+    },
+    'loggers': {
+        'aiohttp.access': {
+            'level': logging.INFO,
+            'handlers': ['console']
+        },
+        'aiohttp.server': {
+            'level': logging.INFO,
+            'handlers': ['console']
+        },
+        'aiohttp.web': {
+            'level': logging.INFO,
+            'handlers': ['console']
+        },
+        'aiohttp.websocket': {
+            'level': logging.INFO,
+            'handlers': ['console']
+        }
+    }
+})
 
 
 repls = {}
