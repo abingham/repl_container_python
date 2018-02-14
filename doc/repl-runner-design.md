@@ -19,48 +19,44 @@ websockets to a backend that actually runs the terminal. As a result, we need to
 "punch a hole" for these websockets through cyber-dojo to the parts that run the
 Python REPL (see the next section).
 
-## repl_runner
+## repl-runner and repl-container
 
-For actually running the Python REPL, the correct model seems to be a new kind
-of runner. Rather than running tests (and immediately exiting), this runner will
-spawn Python processes and interact with them on the user's behalf. This runner
-will keep the processes alive for as long as the user is using them (we need to
-think a bit about how they exit or abandon the REPL).
+To manage the actual REPL processes and websocket connections to them, we'll
+need two new types of container. The first container, the `repl_container`, will
+be very simple. On startup it will create a Python REPL process, connect it to a
+PTY, and create a websocket. It will monitor the websocket, writing the incoming
+messages to the REPL. Likewise, it'll monitor the PTY and write its output (i.e.
+the REPL output) to the websocket. There will be one `repl_container` for each
+active REPL, i.e. one per kata/animal pair that needs an active REPL.
 
-For each running Python process, this runner will need to expose a websocket
-that the user-visible terminal reads and writes to. This is how xterm.js works,
-and it seems like a reasonable approach. As mentioned above, one issue we need
-to sort out is how to ensure that websocket traffic can get from the user's
-browser, through the nginx and web containers, and to the repl_runner container.
-
-An important thing to keep in mind is this runner can't just keep one long-lived
-Python process for each user. Rather, it will need to launch new ones whenever a
-request for a REPL is made. This way users get a clean REPL
-environment/namespace/etc.
+The second container will be the `repl_runner`. This will be started in concert
+with the other long-lived containers like `web`, `nginx`, etc. This container
+will run a webserver that responds to requests to start and stop REPLs. Each of
+these requests will be associated with a kata/animal pair. On a `start` request,
+the `repl_runner` will first start a new `repl_container` container (if one is
+not already running). It will create a new server websocket connected to the
+user, and it'll create a client websocket for communicating with the websocket
+on the new `repl_container`. It will pipe data between these two websockets,
+thereby acting as the "router" between all external websockets and those on the
+`repl_containers`.
 
 ## Putting it together
 
 We envision an overall flow something like this:
 
 1. The `repl_runner` is started along with the `web` container. This can be
-   orchestrated by the docker machinery, I think.
-2. The user requests a REPL
-3. In response, cyber-dojo asks the `repl_runner` to start a new REPL process,
-   injecting the user's code into the container such that it can be imported
-   into the REPL session. (One issue: if all Python processes are in the same
-   container, how can we stop them from potentially stomping on each other's
-   files? Is there a sandbox?)
-4. The `repl_runner` will expose a websocket through a port for each Python
-   process, and `web` will proxy websocket traffic to the correct `repl_runner`
-   instance. `nginx` will need to proxy all websocket traffic to `web`.
+   orchestrated by the docker machinery.
+2. The user requests a REPL. This will result in an HTTP request for a new REPL.
+   `nginx` will be configured to proxy this call to the `repl_runner`.
+3. The `repl_runner` will start a new `repl_container` as described above.
+4. The UI will then talk to the websocket created by `repl_runner`, thereby
+   talking to the correct `repl_container`. The kata/animal pair will be part of
+   the exposed websocket URL, so the UI will have an easy time knowing how to
+   communicate with the REPL.
 5. When the user is done with the REPL (i.e. the exit it, press a "shutdown"
-   button, or something), `repl_runner` will terminate the associated Python
-   process.
+   button, or something), there will be a call to `repl_runner` to shut down the
+   REPL. This will close down all of the websockets, containers (and thus REPL
+   processes), etc. associated with that REPL session.
 
-So this approach will involve changes to the `nginx` container (or at least its
-configuration). It will also mean similar changes to the `web` container.
-
- We'll also need to think about the UI changes which include:
-- Adding a way to request a REPL
-- Show the REPL when it's active
-- Providing some means to end a REPL session
+This doesn't explain how the user's code gets into the `repl_container`; I need
+to investigate this a bit, but clearly it can be done.
