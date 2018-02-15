@@ -1,0 +1,17 @@
+# -*- mode: restclient -*-
+
+#
+# Start a REPL
+#
+POST http://0.0.0.0:8080/
+Content-Type: application/json
+{
+}
+
+#
+# Stop a REPL
+#
+DELETE http://0.0.0.0:8080/
+Content-Type: application/json
+{
+}
