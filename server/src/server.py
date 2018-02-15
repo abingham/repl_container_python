@@ -36,20 +36,8 @@ logging.config.dictConfig({
     }
 })
 
-
-repls = {}
-
 app = web.Application()
 loop = asyncio.get_event_loop()
-
-
-async def kill_all_repls(app):
-    global repls
-    for proc in repls.values():
-        proc.kill()
-    repls = {}
-
-app.on_shutdown.append(kill_all_repls)
 
 
 class AsyncPTYProcess:
@@ -98,55 +86,71 @@ class AsyncPTYProcess:
         os.kill(self.pid, signal.SIGKILL)
 
 
-async def index(request):
-    with open('src/static/index.html') as f:
-        return web.Response(text=f.read(), content_type='text/html')
-
-
-async def create_repl(request):
-    """Start a new REPL accessed through a PTY.
-    """
-    # TODO: The process name should be configurable
-    proc = AsyncPTYProcess('python3')
-    repls[proc.pid] = proc
-    return web.Response(
-        text=str(proc.pid))
-
-
-async def websocket_handler(request):
-    """Create a new websocket and connect it's input and output to the subprocess
-    with the specified PID.
+class ReplHandler:
+    """Handlers for various routes in the app, plus attributes for tracking the
+    REPL process.
     """
 
-    pid = int(request.match_info['pid'])
+    def __init__(self):
+        self.process = None
 
-    socket = web.WebSocketResponse()
-    await socket.prepare(request)
+    def kill(self):
+        if self.process is not None:
+            self.process.kill()
+            self.process = None
 
-    proc = repls[pid]
+    async def create_repl_handler(self, request):
+        self.kill()
 
-    async def process_repl_output():
-        """Pipe output from `proc` into the websocket `ws`.
+        assert self.process is None
+
+        self.process = AsyncPTYProcess('python3',
+                                       loop=request.app.loop)
+        return web.Response(
+            text=str(self.process.pid))
+
+    async def delete_repl_handler(self, request):
+        self.kill()
+        return web.Response()
+
+    async def websocket_handler(self, request):
+        """Create a new websocket and connect it's input and output to the subprocess
+        with the specified PID.
         """
-        while True:
-            data = await proc.read()
-            await socket.send_str(data.decode('utf-8'))
 
-    # Arrange for the process output to be written to the websocket.
-    loop.create_task(process_repl_output())
+        # TODO: What if process hasn't been started? Probably just return a 404
+        # or something. Though we could also start one.
 
-    # Write all websocket input into the subprocess.
-    async for msg in socket:
-        proc.write(msg.data.encode('utf-8'))
+        socket = web.WebSocketResponse()
+        await socket.prepare(request)
 
-    await socket.close()
-    return socket
+        async def process_repl_output():
+            """Pipe output from `proc` into the websocket `ws`.
+            """
+            while True:
+                data = await self.process.read()
+                print('from repl:', data)
+                await socket.send_str(data.decode('utf-8'))
+
+        # Arrange for the process output to be written to the websocket.
+        repl_output_task = request.app.loop.create_task(process_repl_output())
+
+        # Write all websocket input into the subprocess.
+        async for msg in socket:
+            print('from socket:', msg.data)
+            self.process.write(msg.data.encode('utf-8'))
+
+        repl_output_task.cancel()
+        await socket.close()
+        return socket
 
 
-app.router.add_static('/static', 'src/static')
-app.router.add_get('/', index)
-app.router.add_post('/repls', create_repl)
-app.router.add_route('GET', '/repls/{pid}', websocket_handler)
+handler = ReplHandler()
+app.router.add_post('/', handler.create_repl_handler)
+app.router.add_delete('/', handler.delete_repl_handler)
+app.router.add_get('/', handler.websocket_handler)
+
+app.on_shutdown.append(lambda app: handler.kill())
 
 if __name__ == '__main__':
     import argparse
