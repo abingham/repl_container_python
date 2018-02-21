@@ -1,1 +1,2 @@
-python3 src/server.py -vv --port $PORT
+cd src
+python3 -m web_app -vv --port $PORT
