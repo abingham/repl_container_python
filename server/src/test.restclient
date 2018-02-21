@@ -3,7 +3,7 @@
 #
 # Start a REPL
 #
-POST http://0.0.0.0:8080/
+POST http://0.0.0.0:4578/
 Content-Type: application/json
 {
 }
@@ -11,7 +11,7 @@ Content-Type: application/json
 #
 # Stop a REPL
 #
-DELETE http://0.0.0.0:8080/
+DELETE http://0.0.0.0:4578/
 Content-Type: application/json
 {
 }

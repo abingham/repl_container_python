@@ -1,5 +1,5 @@
 import asyncio
-import logging.config
+import logging
 import os
 import pty
 import signal
@@ -7,34 +7,7 @@ import subprocess
 
 from aiohttp import web
 
-logging.config.dictConfig({
-    'version': 1,
-    'handlers': {
-        'console': {
-            'class' : 'logging.StreamHandler',
-            'level'   : logging.INFO,
-            'stream'  : 'ext://sys.stdout'
-        }
-    },
-    'loggers': {
-        'aiohttp.access': {
-            'level': logging.INFO,
-            'handlers': ['console']
-        },
-        'aiohttp.server': {
-            'level': logging.INFO,
-            'handlers': ['console']
-        },
-        'aiohttp.web': {
-            'level': logging.INFO,
-            'handlers': ['console']
-        },
-        'aiohttp.websocket': {
-            'level': logging.INFO,
-            'handlers': ['console']
-        }
-    }
-})
+log = logging.getLogger()
 
 app = web.Application()
 loop = asyncio.get_event_loop()
@@ -100,6 +73,7 @@ class ReplHandler:
             self.process = None
 
     async def create_repl_handler(self, request):
+        log.info('creating REPL')
         self.kill()
 
         assert self.process is None
@@ -110,6 +84,7 @@ class ReplHandler:
             text=str(self.process.pid))
 
     async def delete_repl_handler(self, request):
+        log.info('destroying REPL')
         self.kill()
         return web.Response()
 
@@ -121,6 +96,8 @@ class ReplHandler:
         # TODO: What if process hasn't been started? Probably just return a 404
         # or something. Though we could also start one.
 
+        log.info('initiating websocket')
+
         socket = web.WebSocketResponse()
         await socket.prepare(request)
 
@@ -129,7 +106,7 @@ class ReplHandler:
             """
             while True:
                 data = await self.process.read()
-                print('from repl:', data)
+                log.info('from repl: %s', data)
                 await socket.send_str(data.decode('utf-8'))
 
         # Arrange for the process output to be written to the websocket.
@@ -137,11 +114,14 @@ class ReplHandler:
 
         # Write all websocket input into the subprocess.
         async for msg in socket:
-            print('from socket:', msg.data)
+            log.info('from socket: %s', msg.data)
             self.process.write(msg.data.encode('utf-8'))
 
         repl_output_task.cancel()
         await socket.close()
+
+        log.info('terminating websocket')
+
         return socket
 
 
@@ -150,22 +130,31 @@ app.router.add_post('/', handler.create_repl_handler)
 app.router.add_delete('/', handler.delete_repl_handler)
 app.router.add_get('/', handler.websocket_handler)
 
-app.on_shutdown.append(lambda app: handler.kill())
+
+async def cleanup(app):
+    handler.kill()
+
+app.on_shutdown.append(cleanup)
 
 if __name__ == '__main__':
     import argparse
     parser = argparse.ArgumentParser()
+    parser.add_argument('-p', '--port', type=int, default=None,
+                        help='The port on which to serve HTTP.')
     parser.add_argument('--auto-reload', action='store_true',
                         help='run in auto-reload mode')
+    parser.add_argument('-v', action='store_true',
+                        help='enable verbose logging mode')
+    parser.add_argument('-vv', action='store_true',
+                        help='enable very verbose logging mode')
     args = parser.parse_args()
+
+    level = logging.INFO if args.v else logging.WARNING
+    level = logging.DEBUG if args.vv else level
+    logging.basicConfig(level=level)
 
     if args.auto_reload:
         import aiohttp_autoreload
         aiohttp_autoreload.start()
 
-    try:
-        port = int(os.environ['PORT'])
-    except KeyError:
-        port = None
-
-    web.run_app(app, port=port)
+    web.run_app(app, port=args.port)
