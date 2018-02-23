@@ -1,6 +1,6 @@
 import logging
 
-from aiohttp import web
+import sanic.response
 
 from .async_pty_process import AsyncPTYProcess
 
@@ -28,15 +28,16 @@ class Handlers:
 
         self.process = AsyncPTYProcess('python3',
                                        loop=request.app.loop)
-        return web.Response(
-            text=str(self.process.pid))
+
+        return sanic.response.HTTPResponse(status=201)  # created
 
     async def delete_repl_handler(self, request):
         log.info('destroying REPL')
         self.kill()
-        return web.Response()
 
-    async def websocket_handler(self, request):
+        return sanic.response.HTTPResponse(status=200)  # OK
+
+    async def websocket_handler(self, request, ws):
         """Create a new websocket and connect it's input and output to the subprocess
         with the specified PID.
         """
@@ -44,30 +45,20 @@ class Handlers:
         # TODO: What if process hasn't been started? Probably just return a 404
         # or something. Though we could also start one.
 
-        log.info('initiating websocket')
-
-        socket = web.WebSocketResponse()
-        await socket.prepare(request)
-
         async def process_repl_output():
             """Pipe output from `proc` into the websocket `ws`.
             """
             while True:
                 data = await self.process.read()
                 log.info('from repl: %s', data)
-                await socket.send_str(data.decode('utf-8'))
+                await ws.send(data.decode('utf-8'))
 
         # Arrange for the process output to be written to the websocket.
         repl_output_task = request.app.loop.create_task(process_repl_output())
 
         # Write all websocket input into the subprocess.
-        async for msg in socket:
-            log.info('from socket: %s', msg.data)
-            self.process.write(msg.data.encode('utf-8'))
+        async for msg in ws:
+            log.info('from socket: %s', msg)
+            self.process.write(msg.encode('utf-8'))
 
         repl_output_task.cancel()
-        await socket.close()
-
-        log.info('terminating websocket')
-
-        return socket

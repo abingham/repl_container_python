@@ -1,10 +1,8 @@
 """Configuration of the logging system.
 """
 
-import logging.config
 
-
-def configure_logging(level):
+def logging_config(level):
     """Configure the logging system.
 
     This mostly exists to ensure that aiohttp logging out will be available. It
@@ -14,47 +12,47 @@ def configure_logging(level):
         level: A `logging` level at which all logging will be configured.
     """
 
-    logger_config = {
-        'level': level,
-        'handlers': ['console', 'file']
-    }
-
-    log_names = [
-        'aiohttp.access',
-        'aiohttp.client',
-        'aiohttp.internal',
-        'aiohttp.server',
-        'aiohttp.web',
-        'aiohttp.websocket',
-    ]
-
-    loggers = {name: logger_config for name in log_names}
-
-    config = {
-        'version': 1,
+    # modifed from the sanic default config
+    return {
+        'disable_existing_loggers': False,
         'formatters': {
-            'default': {
-                'format': '%(asctime)s %(levelname)-8s %(name)-15s %(message)s',
-                'datefmt': '%Y-%m-%d %H:%M:%S'
-            }
-        },
+            'access': {
+                'class': 'logging.Formatter',
+                'datefmt': '[%Y-%m-%d %H:%M:%S %z]',
+                'format': '%(asctime)s - '
+                '(%(name)s)[%(levelname)s][%(host)s]: '
+                '%(request)s %(message)s %(status)d '
+                '%(byte)d'},
+            'generic': {
+                'class': 'logging.Formatter',
+                'datefmt': '[%Y-%m-%d %H:%M:%S %z]',
+                'format': '%(asctime)s [%(process)d] '
+                '[%(levelname)s] %(message)s'}},
         'handlers': {
+            'access_console': {
+                'class': 'logging.StreamHandler',
+                'formatter': 'access',
+                'stream': 'ext://sys.stdout'},
             'console': {
                 'class': 'logging.StreamHandler',
-                'formatter': 'default',
+                'formatter': 'generic',
+                'stream': 'ext://sys.stdout'},
+            'error_console': {
+                'class': 'logging.StreamHandler',
+                'formatter': 'generic',
+                'stream': 'ext://sys.stderr'}},
+        'loggers': {
+            'root': {
+                'handlers': ['console'],
+                'level': level},
+            'sanic.access': {
+                'handlers': ['access_console'],
                 'level': level,
-                'stream': 'ext://sys.stdout'
-            },
-            'file': {
-                'class': 'logging.handlers.RotatingFileHandler',
-                'formatter': 'default',
-                'filename': 'server.log',
-                'maxBytes': 2048,
-                'backupCount': 3
-            }
-        },
-        'loggers': loggers,
-        'root': logger_config,
-    }
-
-    logging.config.dictConfig(config)
+                'propagate': True,
+                'qualname': 'sanic.access'},
+            'sanic.error': {
+                'handlers': ['error_console'],
+                'level': level,
+                'propagate': True,
+                'qualname': 'sanic.error'}},
+        'version': 1}
