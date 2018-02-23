@@ -1,17 +1,16 @@
-FROM  debian:sid
+FROM  alpine:latest
 LABEL maintainer=austin@sixty-north.com
 
 # - - - - - - - - - - - - - - - -
 # install nodejs
 # tar is needed to tar-pipe test coverage out of tmpfs.
 # - - - - - - - - - - - - - - - -
-
-RUN apt-get update
-RUN apt-get install -y \
+RUN apk --update --no-cache add \
     bash \
     gcc \
-    python3.6 \
-    python3-pip \
+    make \
+    musl-dev \
+    python3-dev \
     tar
 
 ARG CYBER_DOJO_RUNNER_HOME
