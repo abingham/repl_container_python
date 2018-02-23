@@ -56,9 +56,10 @@ class Handlers:
         # Arrange for the process output to be written to the websocket.
         repl_output_task = request.app.loop.create_task(process_repl_output())
 
-        # Write all websocket input into the subprocess.
-        async for msg in ws:
-            log.info('from socket: %s', msg)
-            self.process.write(msg.encode('utf-8'))
-
-        repl_output_task.cancel()
+        try:
+            # Write all websocket input into the subprocess.
+            async for msg in ws:
+                log.info('from socket: %s', msg)
+                self.process.write(msg.encode('utf-8'))
+        finally:
+            repl_output_task.cancel()
