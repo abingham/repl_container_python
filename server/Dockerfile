@@ -1,4 +1,4 @@
-FROM  docker:latest
+FROM  debian:sid
 LABEL maintainer=austin@sixty-north.com
 
 # - - - - - - - - - - - - - - - -
@@ -6,17 +6,16 @@ LABEL maintainer=austin@sixty-north.com
 # tar is needed to tar-pipe test coverage out of tmpfs.
 # - - - - - - - - - - - - - - - -
 
-RUN apk --update --no-cache add \
-bash \
-python3 \
-tar
+RUN apt-get update
+RUN apt-get install -y \
+    bash \
+    gcc \
+    python3.6 \
+    python3-pip \
+    tar
 
-ARG            CYBER_DOJO_RUNNER_HOME
-WORKDIR      ${CYBER_DOJO_RUNNER_HOME}
-
-# - - - - - - - - - - - - - - - -
-# setup server
-# - - - - - - - - - - - - - - - -
+ARG CYBER_DOJO_RUNNER_HOME
+WORKDIR ${CYBER_DOJO_RUNNER_HOME}
 
 COPY . ${CYBER_DOJO_RUNNER_HOME}
 RUN pip3 install -r requirements.txt
