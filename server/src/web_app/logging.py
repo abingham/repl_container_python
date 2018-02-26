@@ -42,9 +42,6 @@ def logging_config(level):
                 'formatter': 'generic',
                 'stream': 'ext://sys.stderr'}},
         'loggers': {
-            'root': {
-                'handlers': ['console'],
-                'level': level},
             'sanic.access': {
                 'handlers': ['access_console'],
                 'level': level,
@@ -55,4 +52,7 @@ def logging_config(level):
                 'level': level,
                 'propagate': True,
                 'qualname': 'sanic.error'}},
+        'root': {
+            'handlers': ['console'],
+            'level': level},
         'version': 1}
