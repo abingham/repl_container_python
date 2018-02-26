@@ -42,6 +42,9 @@ class Handlers:
         with the specified PID.
         """
 
+        if self.process is None:
+            return sanic.response.HTTPResponse(status=404)  # Not found
+
         # TODO: What if process hasn't been started? Probably just return a 404
         # or something. Though we could also start one.
 
