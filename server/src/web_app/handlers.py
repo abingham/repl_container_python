@@ -1,4 +1,6 @@
 import logging
+import pathlib
+import tempfile
 
 import sanic.response
 
@@ -14,20 +16,53 @@ class Handlers:
 
     def __init__(self):
         self.process = None
+        self.tempdir = None
 
     def kill(self):
         if self.process is not None:
             self.process.kill()
             self.process = None
 
+        if self.tempdir is not None:
+            self.tempdir.cleanup()
+            self.tempdir = None
+
+    def _write_source_files(self, data):
+        """Write files found in `data` to the currente tempdir.
+
+        `data` is a dict of information received as the JSON data of REPL
+        creation POST. This function looks for entries in that specify source
+        code files and writes those files to the currently configured temporary
+        direction. The REPL will be directed to run in that directory.
+        """
+        # This converts the request data of the form [{'name': ..., 'value':
+        # ...}] to a dict of the form {'filename': 'contents'}
+        FILE_PREFIX = 'file_content['
+        files = {entry['name'][len(FILE_PREFIX):-1]: entry['value']
+                 for entry in data
+                 if entry['name'].startswith(FILE_PREFIX)}
+
+        # Now we actually write the files
+        temppath = pathlib.Path(self.tempdir.name)
+        for filename, contents in files.items():
+            filepath = temppath / filename
+            with filepath.open(mode='wt') as handle:
+                handle.write(contents)
+
     async def create_repl_handler(self, request):
         log.info('creating REPL')
         self.kill()
 
         assert self.process is None
+        assert self.tempdir is None
+
+        self.tempdir = tempfile.TemporaryDirectory()
+
+        self._write_source_files(request.json)
 
         self.process = AsyncPTYProcess('python3',
-                                       loop=request.app.loop)
+                                       loop=request.app.loop,
+                                       cwd=self.tempdir.name)
 
         return sanic.response.HTTPResponse(status=201)  # created
 
