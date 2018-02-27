@@ -8,7 +8,7 @@ import subprocess
 class AsyncPTYProcess:
     """Runs a subprocess behind a PTY, providing async reading.
     """
-    def __init__(self, *cmd, loop=None):
+    def __init__(self, *cmd, loop=None, cwd=None):
         if loop is None:
             loop = asyncio.get_event_loop()
 
@@ -17,6 +17,7 @@ class AsyncPTYProcess:
         self.queue = asyncio.Queue()
         self.proc = subprocess.Popen(
             cmd,
+            cwd=cwd,
             stdin=self.slave,
             stdout=self.slave,
             stderr=self.slave)
