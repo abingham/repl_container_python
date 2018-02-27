@@ -10,14 +10,13 @@ RUN apk --update --no-cache add \
     gcc \
     make \
     musl-dev \
-    python3-dev \
-    tar
+    python3-dev
 
 ARG CYBER_DOJO_RUNNER_HOME
 WORKDIR ${CYBER_DOJO_RUNNER_HOME}
 
 COPY . ${CYBER_DOJO_RUNNER_HOME}
-RUN pip3 install -r requirements.txt
+RUN python setup.py install
 
 ARG PORT
 EXPOSE ${PORT}

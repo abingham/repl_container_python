@@ -1,7 +1,10 @@
+import logging
+
 from sanic import Sanic
 import sanic.response
 
 from .handlers import Handlers
+from .logging import logging_config
 
 
 def is_alive(request):
@@ -11,11 +14,11 @@ def is_alive(request):
     return sanic.response.HTTPResponse(status=200)
 
 
-def run(host, port, log_config):
-    app = Sanic(log_config=log_config)
+def create_app(log_level=logging.WARN):
+    app = Sanic(logging_config(log_level))
 
-    @app.listener('after_server_stop')
-    async def cleanup(app):
+    @app.listener('before_server_stop')
+    async def cleanup(app, loop):
         handlers.kill()
 
     handlers = Handlers()
@@ -25,4 +28,4 @@ def run(host, port, log_config):
 
     app.add_route(is_alive, "/is_alive")
 
-    app.run(host=host, port=port)
+    return app

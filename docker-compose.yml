@@ -16,7 +16,7 @@ services:
     user: root
     image: cyberdojo/repl_container_python
     init: true
-    container_name: test_repl_container_python_server
+    container_name: repl_container_python
     read_only: false
     tmpfs: /tmp
     restart: 'no'

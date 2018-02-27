@@ -5,9 +5,6 @@
 def logging_config(level):
     """Configure the logging system.
 
-    This mostly exists to ensure that aiohttp logging out will be available. It
-    configures logging to both `STDOUT` and to a rotating file.
-
     Args:
         level: A `logging` level at which all logging will be configured.
     """

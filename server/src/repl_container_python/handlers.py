@@ -2,6 +2,7 @@ import logging
 import pathlib
 import tempfile
 
+import sanic.exceptions
 import sanic.response
 
 from .async_pty_process import AsyncPTYProcess
@@ -78,7 +79,7 @@ class Handlers:
         """
 
         if self.process is None:
-            return sanic.response.HTTPResponse(status=404)  # Not found
+            raise sanic.exceptions.NotFound()  # Not found
 
         # TODO: What if process hasn't been started? Probably just return a 404
         # or something. Though we could also start one.
