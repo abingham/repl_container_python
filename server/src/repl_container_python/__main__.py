@@ -4,8 +4,7 @@
 import argparse
 import logging
 
-from .app import run
-from .logging import logging_config
+from .app import create_app
 
 
 parser = argparse.ArgumentParser()
