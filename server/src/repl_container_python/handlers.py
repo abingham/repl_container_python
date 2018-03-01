@@ -1,3 +1,4 @@
+import asyncio.subprocess
 import logging
 import pathlib
 import tempfile
@@ -6,6 +7,7 @@ import sanic.exceptions
 import sanic.response
 
 from .async_pty_process import AsyncPTYProcess
+from . import utils
 
 log = logging.getLogger()
 
@@ -28,28 +30,6 @@ class Handlers:
             self.tempdir.cleanup()
             self.tempdir = None
 
-    def _write_source_files(self, data):
-        """Write files found in `data` to the currente tempdir.
-
-        `data` is a dict of information received as the JSON data of REPL
-        creation POST. This function looks for entries in that specify source
-        code files and writes those files to the currently configured temporary
-        direction. The REPL will be directed to run in that directory.
-        """
-        # This converts the request data of the form [{'name': ..., 'value':
-        # ...}] to a dict of the form {'filename': 'contents'}
-        FILE_PREFIX = 'file_content['
-        files = {entry['name'][len(FILE_PREFIX):-1]: entry['value']
-                 for entry in data
-                 if entry['name'].startswith(FILE_PREFIX)}
-
-        # Now we actually write the files
-        temppath = pathlib.Path(self.tempdir.name)
-        for filename, contents in files.items():
-            filepath = temppath / filename
-            with filepath.open(mode='wt') as handle:
-                handle.write(contents)
-
     async def create_repl_handler(self, request):
         log.info('creating REPL')
         self.kill()
@@ -59,7 +39,9 @@ class Handlers:
 
         self.tempdir = tempfile.TemporaryDirectory()
 
-        self._write_source_files(request.json)
+        tempdir_path = pathlib.Path(self.tempdir.name)
+        utils.write_source_files(tempdir_path, request.json)
+        await utils.run_setup_py(tempdir_path)
 
         self.process = AsyncPTYProcess('python3',
                                        loop=request.app.loop,
