@@ -16,6 +16,7 @@ setup(
         'Programming Language :: Python :: 3.6',
     ],
     install_requires=[
+        'aiohttp',
         'sanic',
         'websockets',
     ],
