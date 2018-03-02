@@ -63,6 +63,7 @@ class Handlers:
         assert self.repl_mgr is None
 
     async def create_repl_handler(self, request):
+        log.info("wama lama ding dong")
         if self.repl_mgr is not None:
             log.info('request to create REPL while one already exists')
             return sanic.response.HTTPResponse(status=409)
