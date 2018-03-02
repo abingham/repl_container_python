@@ -1,5 +1,4 @@
-import asyncio
-import pathlib
+import subprocess
 
 
 def write_source_files(dir_path, data):
@@ -28,7 +27,7 @@ def write_source_files(dir_path, data):
             handle.write(contents)
 
 
-async def run_setup_py(dir_path):
+def run_setup_py(dir_path):
     """Run setup.py in `dir_path` if one exists.
     """
 
@@ -36,10 +35,9 @@ async def run_setup_py(dir_path):
     if not setup_path.exists():
         return
 
-    proc = await asyncio.subprocess.create_subprocess_exec(
-        'python3', 'setup.py', 'install',
+    subprocess.run(
+        ['python3', 'setup.py', 'install'],
         cwd=str(dir_path))
 
     # TODO: What about the output from compilation? How can we communicate
     # that the user?
-    await proc.wait()

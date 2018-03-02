@@ -5,8 +5,13 @@
 #
 POST http://0.0.0.0:4578/
 Content-Type: application/json
-{
-}
+[
+  {"name": "file_content[foo.py]",
+  "value": "import uuid"},
+  {"name": "file_content[bar.py]",
+  "value": "def bar(): 42"}
+]
+
 
 #
 # Stop a REPL

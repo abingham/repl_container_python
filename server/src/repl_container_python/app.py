@@ -17,15 +17,15 @@ def is_alive(request):
 def create_app(log_level=logging.WARN):
     app = Sanic(logging_config(log_level))
 
-    @app.listener('before_server_stop')
-    async def cleanup(app, loop):
-        handlers.kill()
-
     handlers = Handlers()
     app.add_route(handlers.create_repl_handler, '/', methods=['POST'])
     app.add_route(handlers.delete_repl_handler, '/',  methods=['DELETE'])
     app.add_websocket_route(handlers.websocket_handler, '/')
 
     app.add_route(is_alive, "/is_alive")
+
+    @app.listener('before_server_stop')
+    async def cleanup(app, loop):
+        handlers.close()
 
     return app
