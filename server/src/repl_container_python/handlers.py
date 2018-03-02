@@ -80,7 +80,7 @@ class Handlers:
 
     async def delete_repl_handler(self, request):
         # If there's not extant REPL, slap 'em with a 404
-        if self.repl_mgr is not None:
+        if self.repl_mgr is None:
             return sanic.response.HTTPResponse(status=404)
 
         self.close()
