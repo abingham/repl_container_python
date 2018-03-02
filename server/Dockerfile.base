@@ -8,6 +8,7 @@ LABEL maintainer=austin@sixty-north.com
 RUN apk --update --no-cache add \
     bash \
     gcc \
+    g++ \
     make \
     musl-dev \
     python3-dev
