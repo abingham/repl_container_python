@@ -35,12 +35,12 @@ class TestReplDeletion:
 
 
 class TestReplCommunication:
-    @pytest.mark.xfail(reason="sanic-pytest issue #13")
     async def test_repl_responds_with_prompt(self, test_cli):
         await test_cli.post('/', data=b'[]')
         ws_conn = await test_cli.ws_connect('/')
         try:
+            await ws_conn.receive()
             msg = await ws_conn.receive()
-            assert msg.data.endswith('>>>')
+            assert msg.data.strip().endswith('>>>')
         finally:
             await ws_conn.close()
