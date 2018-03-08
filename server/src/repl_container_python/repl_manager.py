@@ -10,6 +10,10 @@ log = logging.getLogger()
 
 class ReplManager:
     def __init__(self, loop, file_data):
+        """
+        Raises:
+            OSError: If there are problems starting the process.
+        """
         self.websockets = set()
         self.tempdir = tempfile.TemporaryDirectory()
 
@@ -21,14 +25,14 @@ class ReplManager:
             'python3',
             loop=loop,
             cwd=self.tempdir.name)
-        self.task = loop.create_task(self._read_from_repl())
+        self.read_repl_task = loop.create_task(self._read_from_repl())
 
     def close(self):
         self.websockets.clear()
-        self.task.cancel()
+        self.read_repl_task.cancel()
         self.process.kill()
 
-        self.task = None
+        self.read_repl_task = None
         self.process = None
 
     async def _read_from_repl(self):

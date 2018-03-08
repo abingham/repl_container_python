@@ -9,6 +9,10 @@ class AsyncPTYProcess:
     """Runs a subprocess behind a PTY, providing async reading.
     """
     def __init__(self, *cmd, loop=None, cwd=None):
+        """
+        Raises:
+            OSError: If there is a problem running the process.
+        """
         if loop is None:
             loop = asyncio.get_event_loop()
 

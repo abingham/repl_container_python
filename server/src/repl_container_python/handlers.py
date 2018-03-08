@@ -17,15 +17,14 @@ class Handlers:
         self.repl_mgr = None
 
     def close(self):
-        if self.repl_mgr is not None:
-            log.info('destroying REPL')
-            self.repl_mgr.close()
+        try:
+            if self.repl_mgr is not None:
+                log.info('destroying REPL')
+                self.repl_mgr.close()
+        finally:
             self.repl_mgr = None
 
-        assert self.repl_mgr is None
-
     async def create_repl_handler(self, request):
-        log.info("wama lama ding dong")
         if self.repl_mgr is not None:
             log.info('request to create REPL while one already exists')
             return sanic.response.HTTPResponse(status=409)
@@ -35,8 +34,6 @@ class Handlers:
         self.repl_mgr = ReplManager(request.app.loop,
                                     request.json)
 
-        # TODO: Detect and respond to failures in creating the ReplManager
-
         return sanic.response.HTTPResponse(status=201)  # created
 
     async def delete_repl_handler(self, request):
@@ -45,8 +42,6 @@ class Handlers:
             return sanic.response.HTTPResponse(status=404)
 
         self.close()
-
-        # TODO: Detect and respond to failures in closure
 
         return sanic.response.HTTPResponse(status=200)  # OK
 
