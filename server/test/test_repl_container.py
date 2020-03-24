@@ -1,6 +1,3 @@
-import pytest
-
-
 async def test_is_alive_responds_with_200(test_cli):
     resp = await test_cli.get('/is_alive')
     assert resp.status == 200

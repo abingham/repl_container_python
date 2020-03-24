@@ -9,6 +9,6 @@ def app():
 
 
 @pytest.fixture(scope='function')
-def test_cli(loop, app, test_client):
-    client = test_client(app, protocol=WebSocketProtocol)
+def test_cli(loop, app, sanic_client):
+    client = sanic_client(app, protocol=WebSocketProtocol)
     return loop.run_until_complete(client)

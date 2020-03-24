@@ -15,7 +15,7 @@ def is_alive(request):
 
 
 def create_app(log_level=logging.WARN):
-    app = Sanic(log_config=logging_config(log_level))
+    app = Sanic(name='cyber-dojo-python-repl-runner', log_config=logging_config(log_level))
 
     handlers = Handlers()
     app.add_route(handlers.create_repl_handler, '/', methods=['POST'])
