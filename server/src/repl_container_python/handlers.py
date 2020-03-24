@@ -46,7 +46,7 @@ class Handlers:
         return sanic.response.HTTPResponse(status=200)  # OK
 
     async def websocket_handler(self, request, ws):
-        """Create a new websocket and connect it's input and output to the subprocess
+        """Create a new websocket and connect its input and output to the subprocess
         with the specified PID.
         """
 
